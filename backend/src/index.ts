@@ -10,8 +10,6 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-console.log(process.env.DEBUG);
-
 // Basic GET endpoint
 app.get('/health', (req: Request, res: Response) => {
 	res.json({ message: 'OK' });

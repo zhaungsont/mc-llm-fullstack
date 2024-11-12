@@ -2,13 +2,17 @@ import { useEffect, useState } from 'react';
 
 function App() {
 	const [count, setCount] = useState(0);
+	const [message, setMessage] = useState('');
 
-	const debug = import.meta.env.VITE_DEBUG;
+	async function fetchHealth() {
+		const res = await fetch('http://localhost:3000/health');
+		const data = await res.json();
+		console.log(data);
+		setMessage(data.message);
+	}
 
 	useEffect(() => {
-		fetch('http://localhost:3000/health')
-			.then((res) => res.json())
-			.then((data) => console.log(data));
+		fetchHealth();
 	}, []);
 
 	return (
@@ -21,7 +25,7 @@ function App() {
 			>
 				Increment
 			</button>
-			<h1>MESSAGE: {debug}</h1>
+			<h1>MESSAGE: {message}</h1>
 		</div>
 	);
 }
