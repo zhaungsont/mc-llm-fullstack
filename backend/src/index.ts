@@ -14,7 +14,7 @@ const CLIENT_ORIGIN = `http://localhost:${process.env.CLIENT_PORT || 5173}`;
 
 function createBot() {
 	return mineflayer.createBot({
-		host: 'AppleInSpace.aternos.me', // minecraft server ip
+		host: process.env.GAME_SERVER, // minecraft server ip
 		auth: 'microsoft', // for offline mode servers, you can set this to 'offline'
 		username: process.env.BOT_USERNAME || 'Bot',
 		password: process.env.BOT_PASSWORD || '',

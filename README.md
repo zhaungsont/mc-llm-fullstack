@@ -54,6 +54,7 @@ A web-based interface for controlling Minecraft bots using Mineflayer.
    ```bash
    SERVER_PORT=3000
    CLIENT_PORT=5173
+   GAME_SERVER="your_minecraft_server_ip"
    BOT_USERNAME="your_minecraft_email"
    BOT_PASSWORD="your_minecraft_password"
    ```
