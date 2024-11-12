@@ -1,6 +1,6 @@
 # Mineflayer Web (Commercial)
 
-A web-based interface for controlling Minecraft bots using Mineflayer.
+A web-based interface for controlling Minecraft bots using Mineflayer, enhanced with LLMs like GPT-4 for autonomous and intelligent bot behavior.
 
 ## Features
 
