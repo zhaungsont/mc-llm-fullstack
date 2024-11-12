@@ -7,7 +7,13 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+app.use(
+	cors({
+		origin: [`http://localhost:${process.env.CLIENT_PORT || 3001}`],
+		methods: ['GET', 'POST'], // only allow certain HTTP methods
+		credentials: true, // allow cookies and authentication headers
+	})
+);
 app.use(express.json());
 
 // Basic GET endpoint
