@@ -16,14 +16,15 @@ A web-based interface for controlling Minecraft bots using Mineflayer.
 - Frontend:
   - React
   - TypeScript
-  - Socket.IO Client
+  - Vite
+  - Socket\.IO Client
   - TailwindCSS
   
 - Backend:
   - Node.js
   - Express
-  - Socket.IO
-  - Mineflayer
+  - Socket\.IO
+  - [Mineflayer](https://github.com/PrismarineJS/mineflayer)
   - OpenAI API (Phase 2)
 
 ## Setup (for development only)
@@ -62,3 +63,10 @@ A web-based interface for controlling Minecraft bots using Mineflayer.
    ```bash
    cd frontend && npm run dev
    ```
+
+
+## License
+
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). This license requires that modified versions of this software also be made available under the AGPL-3.0, ensuring that all users who interact with the software over a network have access to the source code.
+
+For more details, see the [LICENSE](LICENSE) file in the repository.
