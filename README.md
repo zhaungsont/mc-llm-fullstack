@@ -28,6 +28,9 @@ A web-based interface for controlling Minecraft bots using Mineflayer.
 
 ## Setup (for development only)
 
+> **Note**: You need a separate Minecraft account for the bot (unless you don't plan on playing Minecraft yourself). The account must be a Microsoft account (Mojang accounts are no longer supported).
+
+
 1. Clone the repository
 2. Make sure you have the correct Node.js versions installed (specified in `.nvmrc` in both `frontend` and `backend`)
    - Using nvm:
