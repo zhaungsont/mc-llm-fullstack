@@ -26,7 +26,7 @@ function App() {
 	const [socket, setSocket] = useState<SocketInstance>(socketInstance);
 	const [socketConnectStatus, setSocketConnectStatus] =
 		useState<SocketConnectStatus>(SocketConnectStatus.DISCONNECTED);
-
+	const [botStatus, setBotStatus] = useState('');
 	async function fetchHealth() {
 		const res = await fetch(`${BE_URL_BASE}:${BE_PORT}/health`);
 		const data = await res.json();
@@ -43,7 +43,7 @@ function App() {
 
 			if (data.code !== 0 || data.data === -1) {
 				console.error('Failed to get available port.', data);
-				setMessage('All sockets are in use.');
+				setBotStatus('All sockets are in use. Please try again later.');
 				return;
 			}
 
@@ -53,26 +53,36 @@ function App() {
 			return;
 		}
 
-		const newSocket = io(`${BE_URL_BASE}:${port}`);
+		const s = io(`${BE_URL_BASE}:${port}`);
 		setSocketConnectStatus(SocketConnectStatus.CONNECTING);
 
-		newSocket.on('connect', () => {
-			setSocketConnectStatus(SocketConnectStatus.CONNECTED);
+		s.on('connect', () => {
+			// setSocketConnectStatus(SocketConnectStatus.CONNECTED);
 			console.log('Connected to Socket.IO server');
+			setBotStatus('Initializing...');
 		});
 
-		newSocket.on('disconnect', () => {
+		s.on('disconnect', () => {
 			setSocketConnectStatus(SocketConnectStatus.DISCONNECTED);
 			console.log('Disconnected from Socket.IO server');
 		});
 
-		setSocket({ port, instance: newSocket });
+		s.on('botStatus', (status) => {
+			setBotStatus(status);
+
+			if (status === 'spawn') {
+				setSocketConnectStatus(SocketConnectStatus.CONNECTED);
+			}
+		});
+
+		setSocket({ port, instance: s });
 	}
 
 	const disconnectSocket = () => {
 		if (socket.instance) {
 			socket.instance.disconnect();
 			setSocket(socketInstance);
+			setBotStatus('Disconnected');
 		}
 	};
 
@@ -136,6 +146,11 @@ function App() {
 							onClick={() => {
 								connectSocket();
 							}}
+							style={
+								socketConnectStatus === SocketConnectStatus.CONNECTING
+									? { opacity: 0.5 }
+									: undefined
+							}
 							className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
 						>
 							Connect
@@ -152,6 +167,12 @@ function App() {
 						</button>
 					)}
 				</div>
+				{botStatus && (
+					<div className="flex flex-col items-center gap-3">
+						<h3>Bot Status:</h3>
+						<p className="text-lg font-bold">{botStatus}</p>
+					</div>
+				)}
 			</div>
 		</>
 	);
