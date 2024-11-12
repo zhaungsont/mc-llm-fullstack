@@ -34,21 +34,13 @@ A web-based interface for controlling Minecraft bots using Mineflayer.
 
 1. Clone the repository
 2. Make sure you have the correct Node.js versions installed (specified in `.nvmrc` in both `frontend` and `backend`)
-   - Using nvm:
-     - For backend: `nvm use 18`
-     - For frontend: `nvm use 21`
-   - Or copy these commands to install manually:
-     ```bash
-     # For backend
-     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
-     nvm install 18
-     nvm use 18
+   ```bash
+   # For backend
+   cd backend && nvm use
 
-     # For frontend
-     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
-     nvm install 21
-     nvm use 21
-     ```
+   # For frontend 
+   cd frontend && nvm use
+   ```
 3. Install dependencies in both `frontend` and `backend` folders
    ```bash
    cd frontend && npm install
