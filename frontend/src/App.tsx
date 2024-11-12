@@ -68,10 +68,11 @@ function App() {
 		});
 
 		s.on('botStatus', (status) => {
-			setBotStatus(status);
-
 			if (status === 'spawn') {
 				setSocketConnectStatus(SocketConnectStatus.CONNECTED);
+				setBotStatus('Success');
+			} else {
+				setBotStatus(status);
 			}
 		});
 
