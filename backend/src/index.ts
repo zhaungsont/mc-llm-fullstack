@@ -5,21 +5,19 @@ import 'dotenv/config';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import mineflayer from 'mineflayer';
+import {
+	botLoginHandler,
+	botPhysicTickHandler,
+	createBot,
+	botChatHandler,
+	botSpawnHandler,
+} from './bot/bot';
 
 const app = express();
 const SERVER_PORT = process.env.SERVER_PORT || 3000;
 
-const SOCKET_PORTS = [3001];
+const SOCKET_PORTS = [3001, 3002, 3003, 3004, 3005];
 const CLIENT_ORIGIN = `http://localhost:${process.env.CLIENT_PORT || 5173}`;
-
-function createBot() {
-	return mineflayer.createBot({
-		host: process.env.GAME_SERVER, // minecraft server ip
-		auth: 'microsoft', // for offline mode servers, you can set this to 'offline'
-		username: process.env.BOT_USERNAME || 'Bot',
-		password: process.env.BOT_PASSWORD || '',
-	});
-}
 
 const servers: SocketServer[] = new Array(SOCKET_PORTS.length).fill({
 	instance: null,
@@ -107,16 +105,28 @@ SOCKET_PORTS.forEach((port, index) => {
 			servers[index].botInstance?.end();
 		});
 
-		servers[index].botInstance.on('login', () => {
+		const bot = servers[index].botInstance;
+
+		bot.on('login', () => {
 			io.emit('botStatus', 'login');
+			botLoginHandler(bot);
 		});
-		servers[index].botInstance.on('spawn', () => {
+		bot.on('spawn', () => {
 			io.emit('botStatus', 'spawn');
+			botSpawnHandler(bot);
 		});
-		servers[index].botInstance.on('end', (reason: string) => {
+		bot.on('end', (reason: string) => {
 			io.emit('botStatus', `end: ${reason}`);
-			console.log(`Bot ended: ${reason}`);
+			console.log('Bot ended,', reason);
 			socket.disconnect();
+		});
+
+		bot.on('chat', (username: string, message: string) => {
+			botChatHandler(bot, username, message);
+		});
+
+		bot.on('physicTick', () => {
+			botPhysicTickHandler(bot);
 		});
 	});
 

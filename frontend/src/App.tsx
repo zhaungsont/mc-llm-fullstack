@@ -21,7 +21,6 @@ const socketInstance: SocketInstance = {
 };
 
 function App() {
-	const [count, setCount] = useState(0);
 	const [message, setMessage] = useState('');
 	const [socket, setSocket] = useState<SocketInstance>(socketInstance);
 	const [socketConnectStatus, setSocketConnectStatus] =
@@ -119,17 +118,7 @@ function App() {
 				<div className="mb-5 text-4xl font-bold text-center">
 					Mineflayer Web (Commercial)
 				</div>
-				<div className="">
-					React state debugging: <em>{count}</em>
-				</div>
-				<div className="mb-5">
-					<button
-						onClick={() => setCount(count + 1)}
-						className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-					>
-						Increment
-					</button>
-				</div>
+
 				<hr className="my-6 w-[50%]" />
 
 				<div className="flex flex-col items-center">
