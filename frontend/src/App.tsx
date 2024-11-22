@@ -8,7 +8,7 @@ enum SocketConnectStatus {
 }
 
 const BE_PORT = 3000;
-const BE_URL_BASE = 'http://localhost';
+const BE_URL_BASE = 'http://54.238.209.192';
 
 type SocketInstance = {
 	port: number;

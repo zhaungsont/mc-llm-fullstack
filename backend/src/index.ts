@@ -14,10 +14,11 @@ import {
 } from './bot/bot';
 
 const app = express();
-const SERVER_PORT = process.env.SERVER_PORT || 3000;
+const SERVER_PORT = Number(process.env.SERVER_PORT) || 3000;
 
 const SOCKET_PORTS = [3001, 3002, 3003, 3004, 3005];
-const CLIENT_ORIGIN = `http://localhost:${process.env.CLIENT_PORT || 5173}`;
+
+const CLIENT_ORIGIN = `https://mcbot.zhsont.cc/`;
 
 const servers: SocketServer[] = new Array(SOCKET_PORTS.length).fill({
 	instance: null,
@@ -29,7 +30,7 @@ const servers: SocketServer[] = new Array(SOCKET_PORTS.length).fill({
 // Middleware
 app.use(
 	cors({
-		origin: [CLIENT_ORIGIN],
+		origin: '*', // allow requests from any origin
 		methods: ['GET', 'POST'], // only allow certain HTTP methods
 		credentials: true, // allow cookies and authentication headers
 	})
@@ -55,7 +56,7 @@ app.post('/post', (req: Request, res: Response) => {
 	res.json({ message: 'OK' });
 });
 
-app.listen(SERVER_PORT, () => {
+app.listen(SERVER_PORT, '0.0.0.0', () => {
 	console.log(`Server running at http://localhost:${SERVER_PORT}`);
 });
 
@@ -73,7 +74,7 @@ SOCKET_PORTS.forEach((port, index) => {
 	// Create a Socket.IO server instance for each port
 	const io = new Server(httpServer, {
 		cors: {
-			origin: [CLIENT_ORIGIN],
+			origin: '*',
 			methods: ['GET', 'POST'],
 			credentials: true,
 		},
@@ -131,8 +132,8 @@ SOCKET_PORTS.forEach((port, index) => {
 	});
 
 	// Start the HTTP server for each port
-	httpServer.listen(port, () => {
-		console.log(`Server running at http://localhost:${port}`);
+	httpServer.listen(port, '0.0.0.0', () => {
+		console.log(`Server running at ${port}`);
 	});
 });
 
