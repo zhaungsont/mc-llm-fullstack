@@ -189,6 +189,10 @@ function App() {
 							health={0}
 							food={0}
 							addBot={(botUsername) => {
+								if (bots.some((bot) => bot.botName === botUsername)) {
+									alert('Bot name already exists');
+									return;
+								}
 								socket?.emit('addBot', botUsername);
 							}}
 							removeBot={() => {}}
