@@ -131,8 +131,6 @@ function App() {
 	// 	}
 	// };
 
-	console.log(socket);
-
 	return (
 		<>
 			<div className="bg-red-300">
