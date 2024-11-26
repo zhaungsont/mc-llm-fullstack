@@ -25,14 +25,21 @@ const BOT_USERNAMES = [
 ];
 
 export class BotController {
-	socketId: string;
+	botId: string;
 	botInstance: mineflayer.Bot | null;
 	botName: string;
+	botStatus: string;
+	health: number;
+	food: number;
+	isConnected: boolean;
 
-	constructor(socketId: string, botName: string, gameServerIp: string) {
-		this.socketId = socketId;
+	constructor(botId: string, botName: string, gameServerIp: string) {
+		this.botId = botId;
 		this.botName = botName;
-
+		this.health = 0;
+		this.food = 0;
+		this.botStatus = 'initializing';
+		this.isConnected = false;
 		const newBot = mineflayer.createBot({
 			host: gameServerIp, // minecraft server ip
 			auth: 'offline', // for offline mode servers, you can set this to 'offline'
@@ -50,31 +57,13 @@ export class BotController {
 		// newBot.loadPlugin(armorManager);
 
 		this.botInstance = newBot;
-
-		// // Getters
-		// public getSocketId(): string {
-		// 	return this.socketId;
-		// }
-
-		// public getInstance(): mineflayer.Bot | null {
-		// 	return this.botInstance;
-		// }
-
-		// public getName(): string {
-		// 	return this.botName;
-		// }
-
-		// // Setters
-		// public setInstance(bot: mineflayer.Bot | null): void {
-		// 	this.botInstance = bot;
-		// }
 	}
 
 	public loginHandler(): void {
 		if (!this.botInstance) return;
 
-		const bot = this.botInstance;
-		console.log(`${this.botName} logged in`);
+		// const bot = this.botInstance;
+		// console.log(`${this.botName} logged in`);
 		// bot.chat('Hello, I am a bot!');
 	}
 
@@ -96,6 +85,10 @@ export class BotController {
 		const bot = this.botInstance;
 		if (username === bot.username || BOT_USERNAMES.includes(username)) return;
 
+		if (BotsManager.bots.some((bot) => bot.botName === username)) {
+			// ignore messages from other bots
+			return;
+		}
 		console.log(`${this.botName} chat: ${username}: ${message}`);
 		bot.chat(`${username} said ${message}`);
 		this.humanRequestHandler(username, message);
@@ -103,13 +96,30 @@ export class BotController {
 
 	public physicTickHandler(): void {
 		if (!this.botInstance) return;
-
-		// const bot = this.botInstance;
-		// console.log(`${this.botName} physic tick`);
-
 		this.lookAtNearestEntity();
-		// console.log(`bot ${bot.username} is looking at ${bot.entity.position}`);
 	}
+
+	public healthAndFoodChangeHandler(): void {
+		if (!this.botInstance) {
+			throw new Error('Bot instance not found in healthAndFoodChangeHandler')
+				.stack;
+		}
+		const bot = this.botInstance;
+		this.health = bot.health;
+		this.food = bot.food;
+		console.log('health', bot.health);
+		console.log('food', bot.food);
+		if (bot.health <= 6) {
+			bot.chat('Warning! Low health');
+		}
+		if (bot.food <= 6) {
+			bot.chat('Warning! Low food');
+		}
+	}
+
+	/////////////////////
+	// PRIVATE METHODS //
+	/////////////////////
 
 	private lookAtNearestEntity(): void {
 		if (!this.botInstance) {
@@ -121,12 +131,11 @@ export class BotController {
 		});
 
 		if (!livingEntity) return;
-		// console.log('livingEntity', livingEntity);
 		const pos = livingEntity.position.offset(0, livingEntity.height, 0);
 		bot.lookAt(pos);
 	}
 
-	public humanRequestHandler(username: string, message: string): void {
+	private humanRequestHandler(username: string, message: string): void {
 		const bot = this.botInstance;
 		if (!bot) {
 			throw new Error(
@@ -168,133 +177,50 @@ export class BotController {
 		if (!this.botInstance) {
 			throw new Error('Bot instance not found in stopFollowingPlayer');
 		}
-		this.botInstance.pathfinder.stop();
+		const bot = this.botInstance;
+		bot.pathfinder.stop();
+		bot.chat('I stopped following you!');
 	}
 }
-// export function createBot(
-// 	config: {
-// 		gameServerIp: string;
-// 		botUsername: string;
-// 	} = { gameServerIp: '', botUsername: '' }
-// ) {
-// 	const newBot = mineflayer.createBot({
-// 		host: config.gameServerIp, // minecraft server ip
-// 		auth: 'offline', // for offline mode servers, you can set this to 'offline'
-// 		// auth: 'microsoft', // for offline mode servers, you can set this to 'offline'
-// 		username:
-// 			config.botUsername ||
-// 			BOT_USERNAMES[Math.floor(Math.random() * BOT_USERNAMES.length)],
-// 		// username: process.env.BOT_USERNAME || 'Bot',
-// 		// password: process.env.BOT_PASSWORD || '',
-// 	});
-
-// 	newBot.loadPlugin(pathfinder);
-// 	// newBot.loadPlugin(pvp);
-// 	// newBot.loadPlugin(autoeat);
-// 	// newBot.loadPlugin(armorManager);
-
-// 	return newBot;
-// }
-
 export class BotsManager {
-	bots: BotController[] = [];
+	static bots: BotController[] = [];
 
 	constructor() {}
 
-	addBot({
+	static addBot({
 		gameServerIp,
 		botUsername,
-		socketId,
+		botId,
 	}: {
 		gameServerIp: string;
 		botUsername: string;
-		socketId: string;
+		botId: string;
 	}): BotController {
-		const newBot = new BotController(socketId, botUsername, gameServerIp);
-		this.bots.push(newBot);
+		const newBot = new BotController(botId, botUsername, gameServerIp);
+		BotsManager.bots.push(newBot);
 		return newBot;
 	}
 
-	removeBot(socketId: string): void {
-		const botToRemove = this.bots.find((bot) => bot.socketId === socketId);
+	static removeBot(botId: string): void {
+		const botToRemove = BotsManager.bots.find((bot) => bot.botId === botId);
 		if (botToRemove) {
 			botToRemove.botInstance?.end();
-			this.bots = this.bots.filter((bot) => bot.socketId !== socketId);
+			BotsManager.bots = BotsManager.bots.filter((bot) => bot.botId !== botId);
+			console.log('Bot removed', botId);
 		}
+		console.log('new bots array', BotsManager.bots);
+	}
+
+	static removeAllBots(): void {
+		BotsManager.bots.forEach((bot) => {
+			bot.botInstance?.end();
+			bot.botStatus = 'end';
+			bot.isConnected = false;
+		});
+
+		BotsManager.bots = [];
 	}
 }
-
-// export function botLoginHandler(bot: mineflayer.Bot) {
-// 	talk(bot, `Hello, I am ${bot.username}, I'm a bot!`);
-// }
-
-// export function botSpawnHandler(bot: mineflayer.Bot) {
-// 	return;
-// }
-
-// export function botChatHandler(
-// 	bot: mineflayer.Bot,
-// 	username: string,
-// 	message: string
-// ) {
-// 	console.log(`Chat received: ${username}: ${message}`);
-// 	if (username === bot.username && BOT_USERNAMES.includes(username)) return;
-
-// 	humanPlayerRequestHandler(bot, username, message);
-// }
-
-// function talk(bot: mineflayer.Bot, message: string) {
-// 	bot.chat(message);
-// }
-
-// function followPlayer(bot: mineflayer.Bot, username: string) {
-// 	const playerEntity = bot.players[username]?.entity;
-// 	if (!playerEntity) {
-// 		talk(bot, "I don't see you !");
-// 		bot.pathfinder.stop();
-// 		return;
-// 	}
-// 	talk(bot, `Coming, ${username} !`);
-// 	const goal = new GoalFollow(playerEntity, 3);
-// 	bot.pathfinder.setGoal(goal, true);
-// 	console.log('playerEntity', playerEntity);
-// }
-
-// function stopFollowingPlayer(bot: mineflayer.Bot) {
-// 	bot.pathfinder.stop();
-// }
-
-// function lookAtNearestEntity(bot: mineflayer.Bot) {
-// 	const livingEntity = bot.nearestEntity((entity) => {
-// 		return entity.type === 'player' || entity.type === 'mob';
-// 	});
-
-// 	if (!livingEntity) return;
-// 	// console.log('livingEntity', livingEntity);
-// 	const pos = livingEntity.position.offset(0, livingEntity.height, 0);
-// 	bot.lookAt(pos);
-// }
-
-// export function botPhysicTickHandler(bot: mineflayer.Bot) {
-// 	lookAtNearestEntity(bot);
-// }
-
-// function humanPlayerRequestHandler(
-// 	bot: mineflayer.Bot,
-// 	username: string,
-// 	message: string
-// ) {
-// 	const formattedMessage = message.toLowerCase();
-// 	if (
-// 		formattedMessage.includes(`${bot.username.toLowerCase()} follow`) ||
-// 		formattedMessage.includes(`${bot.username.toLowerCase()} come`)
-// 	) {
-// 		followPlayer(bot, username);
-// 	}
-// 	if (formattedMessage.includes(`${bot.username.toLowerCase()} stop`)) {
-// 		stopFollowingPlayer(bot);
-// 	}
-// }
 
 // export function botSoundEffectHeardHandler(
 // 	bot: mineflayer.Bot,
