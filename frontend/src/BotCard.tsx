@@ -72,7 +72,11 @@ function BotCard({
 					{createMode ? 'Create a new bot' : botStatus}
 				</div>
 				<div className="w-32 h-32 bg-gray-200 rounded-md">
-					<img src={`/creeper.png`} alt={botStatus} />
+					{botStatus === 'spawn' ? (
+						<img src={`/creeper-active.png`} alt={botStatus} />
+					) : (
+						<img src={`/creeper-inactive.png`} alt={botStatus} />
+					)}
 				</div>
 				{createMode ? (
 					<>
