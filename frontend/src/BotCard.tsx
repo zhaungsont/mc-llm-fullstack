@@ -21,6 +21,7 @@ function HealthAndFoodBar({ rate, icon }: { rate: number; icon: string }) {
 					{icon}
 				</span>
 			) : null}
+			{rate === 0 ? <span>💀</span> : null}
 		</div>
 	);
 }
