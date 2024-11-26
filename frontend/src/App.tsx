@@ -8,7 +8,10 @@ enum SocketConnectStatus {
 }
 
 const BE_PORT = 3000;
-const BE_URL_BASE = 'http://54.238.209.192';
+const SOCKET_PORT = 3001;
+// const BE_URL_BASE = 'http://54.238.209.192';
+const BE_URL_BASE = 'http://localhost';
+const DEFAULT_GAME_SERVER_IP = 'AppleInSpace.aternos.me';
 
 type SocketInstance = {
 	port: number;
@@ -26,33 +29,40 @@ function App() {
 	const [socketConnectStatus, setSocketConnectStatus] =
 		useState<SocketConnectStatus>(SocketConnectStatus.DISCONNECTED);
 	const [botStatus, setBotStatus] = useState('');
+	const [gameServerIp, setGameServerIp] = useState(DEFAULT_GAME_SERVER_IP);
+	const [botUsername, setBotUsername] = useState('');
 	async function fetchHealth() {
 		const res = await fetch(`${BE_URL_BASE}:${BE_PORT}/health`);
 		const data = await res.json();
 		console.log(data);
-		setMessage(data.message);
+		setMessage(data.status);
 	}
 
 	async function connectSocket() {
 		// First ask BE for available port
-		let port = -1;
-		try {
-			const res = await fetch(`${BE_URL_BASE}:${BE_PORT}/quotaAvailability`);
-			const data = await res.json();
 
-			if (data.code !== 0 || data.data === -1) {
-				console.error('Failed to get available port.', data);
-				setBotStatus('All sockets are in use. Please try again later.');
-				return;
-			}
+		// try {
+		// 	const res = await fetch(`${BE_URL_BASE}:${BE_PORT}/quotaAvailability`);
+		// 	const data = await res.json();
 
-			port = data.data;
-		} catch (err) {
-			console.error(err);
-			return;
-		}
+		// 	if (data.code !== 0 || data.data === -1) {
+		// 		console.error('Failed to get available port.', data);
+		// 		setBotStatus('All sockets are in use. Please try again later.');
+		// 		return;
+		// 	}
 
-		const s = io(`${BE_URL_BASE}:${port}`);
+		// 	port = data.data;
+		// } catch (err) {
+		// 	console.error(err);
+		// 	return;
+		// }
+
+		const s = io(`${BE_URL_BASE}:${SOCKET_PORT}`, {
+			query: {
+				gameServerIp,
+				botUsername: botUsername,
+			},
+		});
 		setSocketConnectStatus(SocketConnectStatus.CONNECTING);
 
 		s.on('connect', () => {
@@ -75,7 +85,7 @@ function App() {
 			}
 		});
 
-		setSocket({ port, instance: s });
+		setSocket({ port: SOCKET_PORT, instance: s });
 	}
 
 	const disconnectSocket = () => {
@@ -130,9 +140,39 @@ function App() {
 				<hr className="my-6 w-[50%]" />
 				<div className="flex flex-col items-center gap-3">
 					<h3>{socketConnectStatusText()}</h3>
+					<input
+						type="text"
+						className="w-64 border-2 border-gray-300 rounded-md p-2 text-center"
+						placeholder="Enter Server IP"
+						value={gameServerIp}
+						onChange={(e) => {
+							setGameServerIp(e.target.value);
+						}}
+						disabled={
+							socketConnectStatus === SocketConnectStatus.CONNECTING ||
+							socketConnectStatus === SocketConnectStatus.CONNECTED
+						}
+					/>
+					<input
+						type="text"
+						className="w-64 border-2 border-gray-300 rounded-md p-2 text-center"
+						placeholder="Enter Bot Username"
+						value={botUsername}
+						onChange={(e) => {
+							setBotUsername(e.target.value);
+						}}
+						disabled={
+							socketConnectStatus === SocketConnectStatus.CONNECTING ||
+							socketConnectStatus === SocketConnectStatus.CONNECTED
+						}
+					/>
 					{socketConnectStatus !== SocketConnectStatus.CONNECTED && (
 						<button
-							disabled={socketConnectStatus === SocketConnectStatus.CONNECTING}
+							disabled={
+								socketConnectStatus === SocketConnectStatus.CONNECTING ||
+								!botUsername ||
+								!gameServerIp
+							}
 							onClick={() => {
 								connectSocket();
 							}}
