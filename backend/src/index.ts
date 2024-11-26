@@ -5,31 +5,19 @@ import 'dotenv/config';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import mineflayer from 'mineflayer';
-import {
-	botLoginHandler,
-	botPhysicTickHandler,
-	createBot,
-	botChatHandler,
-	botSpawnHandler,
-} from './bot/bot';
+import { BotController, BotsManager } from './bot/bot';
+import { v4 as uuidv4 } from 'uuid';
+
+const SERVER_PORT = Number(process.env.SERVER_PORT) || 3000;
+const SOCKET_PORT = 3001;
+const CLIENT_ORIGIN = `https://mcbot.zhsont.cc/`;
 
 const app = express();
-const SERVER_PORT = process.env.SERVER_PORT || 3000;
-
-const SOCKET_PORTS = [3001, 3002, 3003, 3004, 3005];
-const CLIENT_ORIGIN = `http://localhost:${process.env.CLIENT_PORT || 5173}`;
-
-const servers: SocketServer[] = new Array(SOCKET_PORTS.length).fill({
-	instance: null,
-	port: -1,
-	isInUse: false,
-	botInstance: null,
-});
 
 // Middleware
 app.use(
 	cors({
-		origin: [CLIENT_ORIGIN],
+		origin: '*', // allow requests from any origin
 		methods: ['GET', 'POST'], // only allow certain HTTP methods
 		credentials: true, // allow cookies and authentication headers
 	})
@@ -38,105 +26,166 @@ app.use(express.json());
 
 // Basic GET endpoint
 app.get('/health', (req: Request, res: Response) => {
-	res.json({ message: 'OK' });
+	res.json({ status: 'healthy' });
 });
 
-app.get('/quotaAvailability', (req: Request, res: Response) => {
-	const availablePort = servers.find((server) => !server.isInUse);
-	if (!availablePort) {
-		res.json({ code: 1, data: -1 });
-		return;
+app.listen(SERVER_PORT, '0.0.0.0', () => {
+	console.log(`HTTP Server running at http://localhost:${SERVER_PORT}`);
+});
+
+const httpServer = createServer(app);
+
+function getBotsUpdatePayload() {
+	return BotsManager.bots.map((bot) => ({
+		botId: bot.botId,
+		botName: bot.botName,
+		botStatus: bot.botStatus,
+		health: bot.health,
+		food: bot.food,
+		isConnected: bot.isConnected,
+	}));
+}
+
+// Create a Socket.IO server instance for each port
+const io = new Server(httpServer, {
+	cors: {
+		origin: '*',
+		methods: ['GET', 'POST'],
+		credentials: true,
+	},
+});
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+	const { gameServerIp, botUsername } = socket.handshake.query;
+	console.log(`A user connected on port ${SOCKET_PORT}:`, socket.id);
+
+	function addBot(botUsername: string) {
+		return BotsManager.addBot({
+			gameServerIp: gameServerIp as string,
+			botUsername: botUsername as string,
+			botId: uuidv4(),
+		});
 	}
-	res.json({ code: 0, data: availablePort.port });
-});
 
-app.post('/post', (req: Request, res: Response) => {
-	console.log('POST request received', req.body);
-	res.json({ message: 'OK' });
-});
+	const firstBot = addBot(botUsername as string);
+	console.log('First bot added');
 
-app.listen(SERVER_PORT, () => {
-	console.log(`Server running at http://localhost:${SERVER_PORT}`);
-});
+	registerEventListeners(firstBot);
 
-type SocketServer = {
-	instance: Server | null;
-	port: number;
-	isInUse: boolean;
-	botInstance: mineflayer.Bot | null;
-};
+	console.log('First bot registered event listeners');
 
-// Create multiple HTTP servers and Socket.IO instances
-SOCKET_PORTS.forEach((port, index) => {
-	const httpServer = createServer(app);
+	socket.emit('botsUpdate', getBotsUpdatePayload());
+	console.log('Initial Bot array emitted');
 
-	// Create a Socket.IO server instance for each port
-	const io = new Server(httpServer, {
-		cors: {
-			origin: [CLIENT_ORIGIN],
-			methods: ['GET', 'POST'],
-			credentials: true,
-		},
+	// Handle disconnection
+	socket.on('disconnect', () => {
+		// this means the user has disconnected from the socket; all bots should be removed
+		console.log(`A user disconnected from port ${SOCKET_PORT}:`, socket.id);
+		BotsManager.removeAllBots();
 	});
 
-	servers[index] = {
-		instance: io,
-		port,
-		isInUse: false,
-		botInstance: null,
-	};
-
-	// Socket.IO connection handling
-	io.on('connection', (socket) => {
-		console.log(`A user connected on port ${port}:`, socket.id);
-		servers[index].isInUse = true;
-		servers[index].botInstance = createBot();
-		// Listening for messages from the client
-		socket.on('message', (data) => {
-			console.log(`Message received on port ${port}:`, data);
-			// You can broadcast the message to all connected clients on the same port
-			io.emit('message', data);
-		});
-
-		// Handle disconnection
-		socket.on('disconnect', () => {
-			console.log(`A user disconnected from port ${port}:`, socket.id);
-			servers[index].isInUse = false;
-			servers[index].botInstance?.end();
-		});
-
-		const bot = servers[index].botInstance;
-
-		bot.on('login', () => {
-			io.emit('botStatus', 'login');
-			botLoginHandler(bot);
-		});
-		bot.on('spawn', () => {
-			io.emit('botStatus', 'spawn');
-			botSpawnHandler(bot);
-		});
-		bot.on('end', (reason: string) => {
-			io.emit('botStatus', `end: ${reason}`);
-			console.log('Bot ended,', reason);
-			socket.disconnect();
-		});
-
-		bot.on('chat', (username: string, message: string) => {
-			botChatHandler(bot, username, message);
-		});
-
-		bot.on('physicTick', () => {
-			botPhysicTickHandler(bot);
-		});
+	socket.on('addBot', (botUsername: string) => {
+		const subsequentBot = addBot(botUsername);
+		if (subsequentBot.botInstance) {
+			registerEventListeners(subsequentBot);
+		}
+		socket.emit('botsUpdate', getBotsUpdatePayload());
 	});
 
-	// Start the HTTP server for each port
-	httpServer.listen(port, () => {
-		console.log(`Server running at http://localhost:${port}`);
+	socket.on('removeBot', (botId: string) => {
+		console.log('Removing bot', botId);
+		BotsManager.removeBot(botId);
+		socket.emit('botsUpdate', getBotsUpdatePayload());
 	});
+
+	// register event listeners
+	function registerEventListeners(bot: BotController) {
+		const botInstance = bot.botInstance;
+
+		if (!botInstance) {
+			throw new Error('Bot instance not found in registerEventListeners').stack;
+		}
+
+		botInstance.on('login', () => {
+			bot.isConnected = true;
+			bot.botStatus = 'login';
+			socket.emit('botsUpdate', getBotsUpdatePayload());
+
+			bot.loginHandler();
+		});
+		botInstance.on('spawn', () => {
+			bot.isConnected = true;
+			bot.botStatus = 'spawn';
+			socket.emit('botsUpdate', getBotsUpdatePayload());
+			bot.spawnHandler();
+		});
+		botInstance.on('end', (reason: string) => {
+			bot.isConnected = false;
+			bot.botStatus = `end`;
+			socket.emit('botsUpdate', getBotsUpdatePayload());
+			console.log(
+				`${bot.botName} ended, Reason: ${reason}. botId: ${bot.botId}`
+			);
+			// socket.disconnect();
+			BotsManager.removeBot(bot.botId);
+		});
+
+		botInstance.on('chat', (username: string, message: string) => {
+			bot.chatHandler(username, message);
+		});
+
+		botInstance.on('physicTick', () => {
+			bot.physicTickHandler();
+		});
+
+		botInstance.on('health', () => {
+			// Fires when your hp or food change.
+			bot.healthAndFoodChangeHandler();
+			socket.emit('botsUpdate', getBotsUpdatePayload());
+			// socket.emit('botsUpdate', botsManager.bots);
+		});
+
+		// bot.on('soundEffectHeard', (soundName, position, volume, pitch) => {
+		// 	botSoundEffectHeardHandler(bot, soundName, position, volume, pitch);
+		// });
+
+		// bot.on(
+		// 	'hardcodedSoundEffectHeard',
+		// 	(soundId, soundCategory, position, volume, pitch) => {
+		// 		botHardcodedSoundEffectHeardHandler(
+		// 			bot,
+		// 			soundId,
+		// 			soundCategory,
+		// 			position,
+		// 			volume,
+		// 			pitch
+		// 		);
+		// 	}
+		// );
+	}
+});
+
+// Start the HTTP server for each port
+httpServer.listen(SOCKET_PORT, '0.0.0.0', () => {
+	console.log(`Socket.IO Server running at ${SOCKET_PORT}`);
 });
 
 setInterval(() => {
 	console.log('-------');
-	console.log(servers.map((server) => `${server.port}: ${server.isInUse}`));
+	if (BotsManager.bots.length > 0) {
+		console.log('Current bots:');
+		BotsManager.bots.forEach((bot) => {
+			console.log(`Socket ID: ${bot.botId}, Bot name: ${bot.botName}`);
+		});
+	} else {
+		console.log('No bots');
+	}
 }, 1000);
+
+// type SocketServer = {
+// 	instance: Server | null;
+// 	port: number;
+// 	isInUse: boolean;
+// 	botInstance: mineflayer.Bot | null;
+// };
