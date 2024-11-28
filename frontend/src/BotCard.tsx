@@ -11,12 +11,23 @@ interface BotCardProps {
 }
 
 function HealthAndFoodBar({ rate, icon }: { rate: number; icon: string }) {
+	if (rate < 0) {
+		rate = 0;
+	}
+	if (rate > 20) {
+		rate = 20;
+	}
+
+	const totalBars = Math.ceil(rate / 2);
+	const fullBars = Math.floor(rate / 2);
+	const halfBar = totalBars > fullBars;
+
 	return (
 		<div>
-			{new Array(Math.round(rate / 2)).fill(0).map((_, i) => (
+			{new Array(fullBars).fill(0).map((_, i) => (
 				<span key={i}>{icon}</span>
 			))}
-			{Math.round(rate) % 2 === 1 ? (
+			{halfBar ? (
 				<span className="relative" style={{ clipPath: 'inset(0 50% 0 0)' }}>
 					{icon}
 				</span>
@@ -39,7 +50,7 @@ function BotCard({
 
 	const createMode = botName === '__create__';
 
-	const botIsConnected = botStatus !== 'initializing' && botStatus !== 'end';
+	const botIsConnected = botStatus === 'spawn';
 
 	function getBotConnectActionText() {
 		switch (botStatus) {
