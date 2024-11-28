@@ -3,6 +3,11 @@ import pkg from 'mineflayer-pathfinder';
 import { Vec3 } from 'vec3';
 const { pathfinder, Movements, goals } = pkg;
 const { GoalNear, GoalFollow } = goals;
+import prismarineRegistry from 'prismarine-registry';
+import prismarineBlock from 'prismarine-block';
+
+const registry = prismarineRegistry('1.8');
+const Block = prismarineBlock(registry);
 
 const BOT_USERNAMES = [
 	'Alice',
@@ -89,6 +94,10 @@ export class BotController {
 			// ignore messages from other bots
 			return;
 		}
+		if (message === 'debug') {
+			this.debugHandler();
+			return;
+		}
 		console.log(`${this.botName} chat: ${username}: ${message}`);
 		bot.chat(`${username} said ${message}`);
 		this.humanRequestHandler(username, message);
@@ -114,6 +123,61 @@ export class BotController {
 		}
 		if (bot.food <= 6) {
 			bot.chat('Warning! Low food');
+		}
+	}
+
+	public botHardcodedSoundEffectHeardHandler(
+		soundId: number,
+		soundCategory: number,
+		position: Vec3,
+		volume: number,
+		pitch: number
+	): void {
+		// console.log(
+		// 	'botHardcodedSoundEffectHeard',
+		// 	soundId,
+		// 	soundCategory,
+		// 	position,
+		// 	volume,
+		// 	pitch
+		// );
+	}
+
+	public chestLidMoveHandler(block: any, isOpen: number, block2: any): void {
+		if (!this.botInstance) {
+			throw new Error('Bot instance not found in chestLidMoveHandler').stack;
+		}
+		const bot = this.botInstance;
+		if (!isOpen) {
+			bot.chat('Chest lid closed!');
+		}
+	}
+
+	private debugHandler(): void {
+		if (!this.botInstance) {
+			throw new Error('Bot instance not found in debugHandler').stack;
+		}
+		const bot = this.botInstance;
+		console.log('bot inventory', bot.inventory);
+	}
+
+	public rainHandler(): void {
+		if (!this.botInstance) {
+			throw new Error('Bot instance not found in rainHandler').stack;
+		}
+		const bot = this.botInstance;
+		bot.chat('/weather clear');
+		bot.chat('Rain cleared.');
+	}
+
+	public timeChangeHandler(): void {
+		if (!this.botInstance) {
+			throw new Error('Bot instance not found in timeChangeHandler').stack;
+		}
+		const bot = this.botInstance;
+		if (!bot.time.isDay) {
+			bot.chat('/time set 0');
+			bot.chat('Time set to day.');
 		}
 	}
 

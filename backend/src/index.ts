@@ -146,9 +146,31 @@ io.on('connection', (socket) => {
 			// socket.emit('botsUpdate', botsManager.bots);
 		});
 
-		// bot.on('soundEffectHeard', (soundName, position, volume, pitch) => {
-		// 	botSoundEffectHeardHandler(bot, soundName, position, volume, pitch);
-		// });
+		botInstance.on(
+			'hardcodedSoundEffectHeard',
+			(soundId, soundCategory, position, volume, pitch) => {
+				bot.botHardcodedSoundEffectHeardHandler(
+					soundId,
+					soundCategory,
+					position,
+					volume,
+					pitch
+				);
+				// botInstance.chat('Sound effect heard: ' + soundId);
+			}
+		);
+
+		botInstance.on('chestLidMove', (block, isOpen, block2) => {
+			bot.chestLidMoveHandler(block, isOpen, block2);
+		});
+
+		botInstance.on('rain', () => {
+			bot.rainHandler();
+		});
+
+		botInstance.on('time', () => {
+			bot.timeChangeHandler();
+		});
 
 		// bot.on(
 		// 	'hardcodedSoundEffectHeard',
