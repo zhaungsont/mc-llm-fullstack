@@ -1,13 +1,13 @@
 import mineflayer from 'mineflayer';
 import pkg from 'mineflayer-pathfinder';
-import { Vec3 } from 'vec3';
 const { pathfinder, Movements, goals } = pkg;
-const { GoalNear, GoalFollow } = goals;
-import prismarineRegistry from 'prismarine-registry';
-import prismarineBlock from 'prismarine-block';
+import minecraftData from 'minecraft-data';
+import { Vec3 } from 'vec3';
+const { GoalNear, GoalFollow, GoalBlock, GoalGetToBlock } = goals;
 
-const registry = prismarineRegistry('1.8');
-const Block = prismarineBlock(registry);
+import { Block } from 'prismarine-block';
+
+const mcData = minecraftData('1.20.4');
 
 const BOT_USERNAMES = [
 	'Alice',
@@ -37,6 +37,12 @@ export class BotController {
 	health: number;
 	food: number;
 	isConnected: boolean;
+	chatLogConfig: {
+		isLogging: boolean;
+		username?: string;
+		chatLog: string[];
+	};
+	canLookAround: boolean;
 
 	constructor(botId: string, botName: string, gameServerIp: string) {
 		this.botId = botId;
@@ -45,6 +51,12 @@ export class BotController {
 		this.food = 0;
 		this.botStatus = 'initializing';
 		this.isConnected = false;
+		this.chatLogConfig = {
+			isLogging: false,
+			username: undefined,
+			chatLog: [],
+		};
+		this.canLookAround = true;
 		const newBot = mineflayer.createBot({
 			host: gameServerIp, // minecraft server ip
 			auth: 'offline', // for offline mode servers, you can set this to 'offline'
@@ -52,6 +64,7 @@ export class BotController {
 			username:
 				botName ||
 				BOT_USERNAMES[Math.floor(Math.random() * BOT_USERNAMES.length)],
+			version: '1.20.4',
 			// username: process.env.BOT_USERNAME || 'Bot',
 			// password: process.env.BOT_PASSWORD || '',
 		});
@@ -77,6 +90,11 @@ export class BotController {
 
 		const bot = this.botInstance;
 		console.log(`${this.botName} spawned`);
+		const movements = new Movements(bot);
+		movements.entityCost = 10;
+		movements.canDig = false;
+		bot.pathfinder.setMovements(movements);
+
 		bot.chat('Hello, I am a bot!!!!');
 	}
 
@@ -98,8 +116,8 @@ export class BotController {
 			this.debugHandler();
 			return;
 		}
-		console.log(`${this.botName} chat: ${username}: ${message}`);
-		bot.chat(`${username} said ${message}`);
+		// console.log(`${this.botName} chat: ${username}: ${message}`);
+		// bot.chat(`${username} said ${message}`);
 		this.humanRequestHandler(username, message);
 	}
 
@@ -150,6 +168,7 @@ export class BotController {
 		const bot = this.botInstance;
 		if (!isOpen) {
 			bot.chat('Chest lid closed!');
+			console.log('chestLidMove', block, isOpen, block2);
 		}
 	}
 
@@ -181,6 +200,80 @@ export class BotController {
 		}
 	}
 
+	private startLoggingChat(username?: string): void {
+		this.chatLogConfig.isLogging = true;
+		this.chatLogConfig.username = username;
+	}
+
+	private stopLoggingChat(): void {
+		this.chatLogConfig.isLogging = false;
+		this.chatLogConfig.username = undefined;
+		this.chatLogConfig.chatLog = [];
+	}
+
+	//////////////////////
+	// HIGH LEVEL TASKS //
+	//////////////////////
+
+	public async itemsOrganizerHandler(requestUsername: string): Promise<void> {
+		if (!this.botInstance) {
+			throw new Error('Bot instance not found in itemsOrganizerHandler').stack;
+		}
+		const bot = this.botInstance;
+		bot.chat(`Ok ${requestUsername}! Please stand on the chest for 3 seconds.`);
+
+		await new Promise((resolve) =>
+			setTimeout(() => {
+				bot.chat("Ready? I'll start counting...");
+				resolve(null);
+			}, 1500)
+		);
+
+		for (let i = 3; i > 0; i--) {
+			bot.chat(i + '...');
+			await new Promise((resolve) => setTimeout(resolve, 1000));
+		}
+		bot.chat('Ok!');
+
+		const chestBlock = bot.blockAt(
+			bot.players[requestUsername]?.entity.position
+		);
+		console.log('chestBlock', chestBlock);
+		if (!chestBlock || chestBlock.name !== 'chest') {
+			bot.chat("I can't see the chest !");
+			return;
+		}
+		bot.chat(
+			`Chest coordinates: ${chestBlock.position.x}, ${chestBlock.position.y}, ${chestBlock.position.z}`
+		);
+
+		console.log('goalBlock', chestBlock);
+		this.canLookAround = false;
+
+		await bot.pathfinder.goto(
+			new GoalGetToBlock(
+				chestBlock.position.x,
+				chestBlock.position.y,
+				chestBlock.position.z
+			)
+		);
+
+		bot.chat('I am at the chest!');
+		this.canLookAround = true;
+		console.log('opening', chestBlock);
+		await bot.openContainer(chestBlock);
+		console.log('transferring items');
+	}
+
+	private openTheChest(): void {
+		if (!this.botInstance) {
+			throw new Error('Bot instance not found in openTheChest').stack;
+		}
+		const bot = this.botInstance;
+
+		bot.chat('Chest opened!');
+	}
+
 	/////////////////////
 	// PRIVATE METHODS //
 	/////////////////////
@@ -196,7 +289,9 @@ export class BotController {
 
 		if (!livingEntity) return;
 		const pos = livingEntity.position.offset(0, livingEntity.height, 0);
-		bot.lookAt(pos);
+		if (this.canLookAround) {
+			bot.lookAt(pos);
+		}
 	}
 
 	private humanRequestHandler(username: string, message: string): void {
@@ -216,6 +311,18 @@ export class BotController {
 		if (formattedMessage.includes(`${bot.username.toLowerCase()} stop`)) {
 			this.stopFollowingPlayer();
 		}
+		if (formattedMessage.includes(`${bot.username.toLowerCase()} organize`)) {
+			if (formattedMessage.includes('organize chest')) {
+				this.itemsOrganizerHandler(username);
+			}
+		}
+
+		if (
+			this.chatLogConfig.isLogging &&
+			this.chatLogConfig.username === username
+		) {
+			this.chatLogConfig.chatLog.push(message);
+		}
 	}
 
 	private followPlayer(username: string) {
@@ -232,6 +339,7 @@ export class BotController {
 			return;
 		}
 		bot.chat(`Coming, ${username} !`);
+		this.canLookAround = false;
 		const goal = new GoalFollow(playerEntity, 3);
 		bot.pathfinder.setGoal(goal, true);
 		console.log('playerEntity', playerEntity);
@@ -244,6 +352,7 @@ export class BotController {
 		const bot = this.botInstance;
 		bot.pathfinder.stop();
 		bot.chat('I stopped following you!');
+		this.canLookAround = true;
 	}
 }
 export class BotsManager {
