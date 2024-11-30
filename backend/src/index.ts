@@ -114,6 +114,14 @@ io.on('connection', (socket) => {
 
 			bot.loginHandler();
 		});
+
+		botInstance.once('spawn', async () => {
+			bot.isConnected = true;
+			bot.botStatus = 'spawn';
+			socket.emit('botsUpdate', getBotsUpdatePayload());
+			bot.initialSpawnHandler();
+		});
+
 		botInstance.on('spawn', () => {
 			bot.isConnected = true;
 			bot.botStatus = 'spawn';

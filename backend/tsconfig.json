@@ -1,7 +1,7 @@
 {
 	"compilerOptions": {
 		"target": "es2017",
-		"module": "commonjs",
+		"module": "ESNext",
 		"lib": ["es6"],
 		"allowJs": true,
 		"outDir": "dist",
@@ -13,6 +13,10 @@
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
 		"moduleResolution": "node"
+	},
+	"ts-node": {
+		"experimentalSpecifierResolution": "node",
+		"transpileOnly": true
 	},
 	"include": ["src/**/*"],
 	"exclude": ["node_modules", "dist"]

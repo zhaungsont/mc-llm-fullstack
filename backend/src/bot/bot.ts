@@ -4,6 +4,9 @@ const { pathfinder, Movements, goals } = pkg;
 import minecraftData from 'minecraft-data';
 import { Vec3 } from 'vec3';
 const { GoalNear, GoalFollow, GoalBlock, GoalGetToBlock } = goals;
+import { plugin as pvp } from 'mineflayer-pvp';
+
+import armorManager from 'mineflayer-armor-manager';
 
 import { Block } from 'prismarine-block';
 
@@ -69,11 +72,6 @@ export class BotController {
 			// password: process.env.BOT_PASSWORD || '',
 		});
 
-		newBot.loadPlugin(pathfinder);
-		// newBot.loadPlugin(pvp);
-		// newBot.loadPlugin(autoeat);
-		// newBot.loadPlugin(armorManager);
-
 		this.botInstance = newBot;
 	}
 
@@ -85,25 +83,50 @@ export class BotController {
 		// bot.chat('Hello, I am a bot!');
 	}
 
-	public spawnHandler(): void {
-		if (!this.botInstance) return;
+	private botInstanceSafeCheck(): asserts this is {
+		botInstance: mineflayer.Bot;
+	} {
+		if (!this.botInstance) {
+			throw new Error('Bot instance not found in loginHandler').stack;
+		}
+	}
 
+	private async setupBotInstanceConfig() {
+		this.botInstanceSafeCheck();
 		const bot = this.botInstance;
-		console.log(`${this.botName} spawned`);
+
+		const autoEat = await import('mineflayer-auto-eat');
+		bot.loadPlugin(autoEat.loader);
+		bot.autoEat.enableAuto();
+
+		bot.loadPlugin(pathfinder);
+		bot.loadPlugin(pvp);
+		// bot.loadPlugin(autoEat);
+		bot.loadPlugin(armorManager);
+
 		const movements = new Movements(bot);
 		movements.entityCost = 10;
 		movements.canDig = false;
 		bot.pathfinder.setMovements(movements);
+	}
+
+	public initialSpawnHandler(): void {
+		this.botInstanceSafeCheck();
+
+		this.setupBotInstanceConfig();
+	}
+
+	public spawnHandler(): void {
+		this.botInstanceSafeCheck();
+
+		const bot = this.botInstance;
+		console.log(`${this.botName} spawned`);
 
 		bot.chat('Hello, I am a bot!!!!');
 	}
 
 	public chatHandler(username: string, message: string): void {
-		if (!this.botInstance) {
-			throw new Error(
-				`Bot instance not found in chatHandler. params: ${username}, ${message}`
-			).stack;
-		}
+		this.botInstanceSafeCheck();
 
 		const bot = this.botInstance;
 		if (username === bot.username || BOT_USERNAMES.includes(username)) return;
@@ -122,15 +145,14 @@ export class BotController {
 	}
 
 	public physicTickHandler(): void {
-		if (!this.botInstance) return;
+		this.botInstanceSafeCheck();
+
 		this.lookAtNearestEntity();
 	}
 
 	public healthAndFoodChangeHandler(): void {
-		if (!this.botInstance) {
-			throw new Error('Bot instance not found in healthAndFoodChangeHandler')
-				.stack;
-		}
+		this.botInstanceSafeCheck();
+
 		const bot = this.botInstance;
 		this.health = bot.health;
 		this.food = bot.food;
@@ -162,9 +184,8 @@ export class BotController {
 	}
 
 	public chestLidMoveHandler(block: any, isOpen: number, block2: any): void {
-		if (!this.botInstance) {
-			throw new Error('Bot instance not found in chestLidMoveHandler').stack;
-		}
+		this.botInstanceSafeCheck();
+
 		const bot = this.botInstance;
 		if (!isOpen) {
 			bot.chat('Chest lid closed!');
@@ -173,9 +194,8 @@ export class BotController {
 	}
 
 	private debugHandler(): void {
-		if (!this.botInstance) {
-			throw new Error('Bot instance not found in debugHandler').stack;
-		}
+		this.botInstanceSafeCheck();
+
 		const bot = this.botInstance;
 		console.log('bot inventory', bot.inventory);
 	}
